@@ -18,9 +18,17 @@ def load_colmap_data(realdir):
     cam = camdata[list_of_keys[0]]
     print( 'Cameras', len(cam))
 
-    h, w, f = cam.height, cam.width, cam.params[0]
+    h, w = cam.height, cam.width
+    
+    if cam.model == 'OPENCV':
+        fx = cam.params[0]
+        fy = cam.params[1]
+        hwf = np.array([h,w,fx,fy]).reshape([4,1])
+    else:
+        f = cam.params[0]
+        hwf = np.array([h,w,f]).reshape([3,1])
+
     # w, h, f = factor * w, factor * h, factor * f
-    hwf = np.array([h,w,f]).reshape([3,1])
     
     imagesfile = os.path.join(realdir, 'sparse/0/images.bin')
     imdata = read_model.read_images_binary(imagesfile)
@@ -41,8 +49,13 @@ def load_colmap_data(realdir):
     w2c_mats = np.stack(w2c_mats, 0)
     c2w_mats = np.linalg.inv(w2c_mats)
     
-    poses = c2w_mats[:, :3, :4].transpose([1,2,0])
-    poses = np.concatenate([poses, np.tile(hwf[..., np.newaxis], [1,1,poses.shape[-1]])], 1)
+    if cam.model == 'OPENCV':
+        poses = c2w_mats[:, :4, :4].transpose([1,2,0])
+        hwf = np.tile(hwf[..., np.newaxis], [1, 1, poses.shape[-1]])
+        poses = np.concatenate([poses, hwf], axis=1)
+    else:
+        poses = c2w_mats[:, :3, :4].transpose([1,2,0])
+        poses = np.concatenate([poses, np.tile(hwf[..., np.newaxis], [1,1,poses.shape[-1]])], 1)
     
     points3dfile = os.path.join(realdir, 'sparse/0/points3D.bin')
     pts3d = read_model.read_points3d_binary(points3dfile)
