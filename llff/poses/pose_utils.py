@@ -32,7 +32,7 @@ def load_colmap_data(realdir):
     
     imagesfile = os.path.join(realdir, 'sparse/0/images.bin')
     imdata = read_model.read_images_binary(imagesfile)
-    
+
     w2c_mats = []
     bottom = np.array([0,0,0,1.]).reshape([1,4])
     
@@ -69,14 +69,19 @@ def load_colmap_data(realdir):
 def save_poses(basedir, poses, pts3d, perm):
     pts_arr = []
     vis_arr = []
+
+    image_ids = sorted(set([im_id for p in pts3d.values() for im_id in p.image_ids]))
+    id_to_index = {id_: index for index, id_ in enumerate(image_ids)}
+
     for k in pts3d:
         pts_arr.append(pts3d[k].xyz)
-        cams = [0] * poses.shape[-1]
+        cams = [0] * len(image_ids)
         for ind in pts3d[k].image_ids:
-            if len(cams) < ind - 1:
+            index = id_to_index.get(ind)
+            if index is None:
                 print('ERROR: the correct camera poses for current points cannot be accessed')
                 return
-            cams[ind-1] = 1
+            cams[index] = 1
         vis_arr.append(cams)
 
     pts_arr = np.array(pts_arr)
@@ -209,6 +214,7 @@ def minify(basedir, factors=[], resolutions=[]):
 def load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
     
     poses_arr = np.load(os.path.join(basedir, 'poses_bounds.npy'))
+
     poses = poses_arr[:, :-2].reshape([-1, 3, 5]).transpose([1,2,0])
     bds = poses_arr[:, -2:].transpose([1,0])
     
